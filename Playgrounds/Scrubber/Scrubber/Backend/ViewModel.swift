@@ -11,8 +11,25 @@ import ScrubberKit
 class ViewModel: ObservableObject, Identifiable {
     let id: UUID = .init()
 
-    init(query: String) {
-        core = .init(query: query)
+    init(
+        query: String,
+        enableURLsReranker: Bool = false,
+        enableBM5Reranker: Bool = false,
+        keepKPerHostname: Int? = nil
+    ) {
+        if enableURLsReranker {
+            let urlsReranker = URLsReranker(
+                question: enableBM5Reranker ? query : nil,
+                keepKPerHostname: keepKPerHostname
+            )
+            core = .init(
+                query: query,
+                options: .init(urlsReranker: urlsReranker)
+            )
+        } else {
+            core = .init(query: query)
+        }
+
         core.run { document in
             self.documents = document
             self.saveToDownloads()

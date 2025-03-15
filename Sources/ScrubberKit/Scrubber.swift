@@ -10,8 +10,12 @@ import Foundation
 
 public class Scrubber {
     public let query: String
+    public let options: ScrubberOptions
 
-    public init(query: String) { self.query = query }
+    public init(query: String, options: ScrubberOptions = .init()) {
+        self.query = query
+        self.options = options
+    }
 
     private(set) var isCancelled: Bool = false
     private var cores: [UUID: ScrubWorker] = [:]
@@ -38,15 +42,23 @@ public class Scrubber {
         onProgress: @escaping (Progress) -> Void = { _ in }
     ) {
         assert(Thread.isMainThread)
+
         var cancellables: Set<AnyCancellable> = .init()
+        let limitation = limitation ?? 20
+
         progress.updatePublisher
             .throttle(for: 0.5, scheduler: DispatchQueue.main, latest: true)
             .sink { [weak self] progress in
                 onProgress(progress)
-                self?.cancelIf(limitation: limitation ?? 20, lastTenPercent: true)
+                self?.cancelIf(limitation: limitation, lastTenPercent: true)
             }
             .store(in: &cancellables)
-        search()
+
+        if let urlsReranker = options.urlsReranker {
+            search(urlsReranker, topN: limitation)
+        } else {
+            search()
+        }
 
         DispatchQueue.global().async {
             _ = self.dispatchGroup.wait(timeout: .now() + 45)
@@ -209,6 +221,69 @@ public extension Scrubber {
 
         DispatchQueue.main.asyncAfter(deadline: .now() + 20) {
             completion(nil)
+        }
+    }
+}
+
+extension Scrubber {
+    private func search(_ reranker: URLsReranker, topN: Int) {
+        assert(Thread.isMainThread)
+        let searchGroup = DispatchGroup()
+        var searchSnippets: [SearchSnippet] = []
+
+        for engine in ScrubEngine.allCases {
+            progress.update(engine: engine, status: .fetching)
+            guard let query = engine.makeSearchQueryRequest(query)
+            else {
+                progress.update(
+                    engine: engine, status: .completed(result: 0)
+                )
+                continue
+            }
+
+            searchGroup.enterBackground { leaver in
+                self.scrub(url: query, retry: 2) { result in
+                    let snippets = engine.parseSearchSnippet(
+                        result?.document ?? "")
+                    searchSnippets.append(contentsOf: snippets)
+                    leaver()
+                }
+            }
+        }
+
+        dispatchGroup.enterBackground { leaver in
+            searchGroup.wait()
+
+            let snippets = reranker.ranking(searchSnippets)
+
+            let groupedSnippets = Dictionary(
+                grouping: snippets.prefix(topN),
+                by: { $0.engine }
+            )
+
+            for (engine, snippets) in groupedSnippets {
+                self.dispatchGroup.enterBackground { leaver in
+
+                    let searchResults = snippets.map(\.url)
+
+                    self.progress.update(
+                        engine: engine,
+                        status: .completed(result: searchResults.count)
+                    )
+
+                    DispatchQueue.main.async {
+                        self.process(candidates: searchResults, engine: engine)
+                        leaver()
+                    }
+                }
+            }
+
+            let missingEngines = Set(ScrubEngine.allCases).subtracting(groupedSnippets.keys)
+            for engine in missingEngines {
+                self.progress.update(engine: engine, status: .completed(result: 0))
+            }
+
+            leaver()
         }
     }
 }
