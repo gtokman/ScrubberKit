@@ -41,13 +41,13 @@ public final class URLsReranker {
     }
 
     private func normalizeCount(_ count: Double, _ total: Double) -> Double {
-        return total > 0 ? count / total : 0
+        total > 0 ? count / total : 0
     }
 
     private func extractUrlParts(_ url: URL) -> (
         hostname: String, path: String
     ) {
-        return (hostname: url.host ?? "", path: url.path)
+        (hostname: url.host ?? "", path: url.path)
     }
 
     private func countUrlParts(urls: [URL]) -> (
@@ -111,14 +111,14 @@ public final class URLsReranker {
     }
 
     public func ranking(_ snippets: [SearchSnippet]) -> [BoostedSearchSnippet] {
-        let urls = snippets.compactMap { $0.url }
+        let urls = snippets.compactMap(\.url)
         guard !urls.isEmpty else { return [] }
 
         let (hostnameCount, pathPrefixCount, totalUrls) = countUrlParts(
             urls: urls)
 
         var bm25Scores: [String: Double] = [:]
-        if let question = question {
+        if let question {
             let bm25 = BM25Okapi()
             let documents = snippets.map {
                 smartMergeStrings(str1: $0.title, str2: $0.description)
@@ -171,7 +171,7 @@ public final class URLsReranker {
             $0.finalScore > $1.finalScore
         }
 
-        if let keepKPerHostname = keepKPerHostname {
+        if let keepKPerHostname {
             boostedSnippets = filterByHostname(
                 snippets: boostedSnippets, keepKPerHostname: keepKPerHostname
             )

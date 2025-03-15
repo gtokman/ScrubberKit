@@ -315,7 +315,7 @@ public enum ScrubEngine: String, CaseIterable, Codable {
             }
         }
 
-        let searchContent = snippets.map { $0.url.absoluteString }
+        let searchContent = snippets.map(\.url.absoluteString)
 
         snippets = snippets.filter { snippet in
             !searchContent.contains { match in
