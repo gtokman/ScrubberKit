@@ -29,7 +29,7 @@ class ViewModel: ObservableObject, Identifiable {
         } else {
             core = .init(query: query)
         }
-        
+
         core.run { document in
             self.documents = document
             self.saveToDownloads()

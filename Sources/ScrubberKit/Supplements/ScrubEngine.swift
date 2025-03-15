@@ -137,7 +137,7 @@ public enum ScrubEngine: String, CaseIterable, Codable {
 
         return possibleURLs
     }
-    
+
     private func parse(body: Element) -> [SearchSnippet] {
         assert(!Thread.isMainThread)
 
@@ -145,9 +145,9 @@ public enum ScrubEngine: String, CaseIterable, Codable {
         switch self {
         case .google:
             try? body.select("#rso").forEach { object in
-                
+
                 let elements = object.children()
-                
+
                 for element in elements {
                     let link = extractLink(
                         try? element.select("[href]").array().first
@@ -161,7 +161,7 @@ public enum ScrubEngine: String, CaseIterable, Codable {
 
                     let description = try?
                         (element.select("div.VwiC3b").first()
-                        ?? element.select("span.st").first())?.text()
+                            ?? element.select("span.st").first())?.text()
 
                     snippets.append(
                         .init(
@@ -172,13 +172,10 @@ public enum ScrubEngine: String, CaseIterable, Codable {
                         )
                     )
                 }
-                    
-                
-                
             }
         case .duckduckgo:
             try? body.select(".react-results--main").forEach { object in
-                object.children().forEach { listElement in
+                for listElement in object.children() {
                     let link = extractLink(
                         try? listElement.select(
                             "[data-testid=result-title-a]"
@@ -186,7 +183,7 @@ public enum ScrubEngine: String, CaseIterable, Codable {
                     )
 
                     guard let link else {
-                        return
+                        continue
                     }
 
                     let title = try? listElement.select(
@@ -209,7 +206,7 @@ public enum ScrubEngine: String, CaseIterable, Codable {
             }
         case .yahoo:
             try? body.select("#main-algo").forEach { object in
-                try? object.select("section.algo").forEach({ section in
+                try? object.select("section.algo").forEach { section in
                     let link = extractLink(
                         try? section.select(".title [href]").array().first
                     )
@@ -232,7 +229,7 @@ public enum ScrubEngine: String, CaseIterable, Codable {
                             description: description
                         )
                     )
-                })
+                }
             }
         case .bing:
             try? body.select("ol#b_results li.b_algo").forEach { algo in
@@ -263,7 +260,7 @@ public enum ScrubEngine: String, CaseIterable, Codable {
 
         return snippets
     }
-    
+
     private func extractLink(_ element: Element?) -> URL? {
         guard let linkText = try? element?.attr("href") else {
             return nil
@@ -289,10 +286,10 @@ public enum ScrubEngine: String, CaseIterable, Codable {
 
         return url
     }
-    
+
     func parseSearchSnippet(_ html: String) -> [SearchSnippet] {
         assert(!Thread.isMainThread)
-        
+
         guard let soup = try? SwiftSoup.parse(html) else { return [] }
         guard let body = soup.body() else { return [] }
 

@@ -8,7 +8,6 @@
 import Foundation
 
 public final class URLsReranker {
-
     let freqFactor: Double
     let hostnameBoostFactor: Double
     let pathBoostFactor: Double
@@ -73,7 +72,7 @@ public final class URLsReranker {
             }.map { String($0) }
             for (index, _) in pathSegments.enumerated() {
                 let prefix =
-                    "/" + pathSegments[0...index].joined(separator: "/")
+                    "/" + pathSegments[0 ... index].joined(separator: "/")
                 pathPrefixCount[prefix] = (pathPrefixCount[prefix] ?? 0) + 1
             }
         }
@@ -117,9 +116,9 @@ public final class URLsReranker {
 
         let (hostnameCount, pathPrefixCount, totalUrls) = countUrlParts(
             urls: urls)
-        
+
         var bm25Scores: [String: Double] = [:]
-        if let question = self.question {
+        if let question = question {
             let bm25 = BM25Okapi()
             let documents = snippets.map {
                 smartMergeStrings(str1: $0.title, str2: $0.description)
@@ -127,7 +126,7 @@ public final class URLsReranker {
             bm25.fit(documents)
             let results = bm25.search(query: question)
             let normalized = bm25.normalize(scores: results)
-            
+
             for (i, snippet) in snippets.enumerated() {
                 bm25Scores[snippet.url.absoluteString] = normalized[i]
             }
@@ -138,22 +137,25 @@ public final class URLsReranker {
             let path = snippet.url.path
 
             let hostnameFreq = normalizeCount(
-                Double(hostnameCount[hostname] ?? 0), totalUrls)
+                Double(hostnameCount[hostname] ?? 0), totalUrls
+            )
 
             let hostnameBoost = hostnameFreq * self.hostnameBoostFactor
 
             let pathBoost = calculatePathBoost(
                 path: path, pathPrefixCount: pathPrefixCount,
-                totalUrls: totalUrls)
+                totalUrls: totalUrls
+            )
 
             let freqBoost =
                 (snippet.weight ?? 0) / totalUrls * self.freqFactor
-            
+
             let bm25RerankBoost = bm25Scores[snippet.url.absoluteString] ?? 0
 
             let finalScore = min(
                 max(hostnameBoost + pathBoost + freqBoost + bm25RerankBoost, self.minBoost),
-                self.maxBoost)
+                self.maxBoost
+            )
 
             return BoostedSearchSnippet(
                 from: snippet,
@@ -169,9 +171,10 @@ public final class URLsReranker {
             $0.finalScore > $1.finalScore
         }
 
-        if let keepKPerHostname = self.keepKPerHostname {
+        if let keepKPerHostname = keepKPerHostname {
             boostedSnippets = filterByHostname(
-                snippets: boostedSnippets, keepKPerHostname: keepKPerHostname)
+                snippets: boostedSnippets, keepKPerHostname: keepKPerHostname
+            )
         }
 
         return boostedSnippets
@@ -203,12 +206,12 @@ public final class URLsReranker {
             .map(String.init)
         var totalBoost = 0.0
 
-        for i in 0..<pathSegments.count {
-            let prefix = "/" + pathSegments[0...i].joined(separator: "/")
+        for i in 0 ..< pathSegments.count {
+            let prefix = "/" + pathSegments[0 ... i].joined(separator: "/")
             let prefixFreq = Double(pathPrefixCount[prefix] ?? 0) / totalUrls
             let decayedBoost =
-                prefixFreq * pow(self.decayFactor, Double(i))
-                * self.pathBoostFactor
+                prefixFreq * pow(decayFactor, Double(i))
+                    * pathBoostFactor
             totalBoost += decayedBoost
         }
 
@@ -258,11 +261,11 @@ public struct BoostedSearchSnippet: Equatable {
         bm25RerankBoost: Double = 0,
         finalScore: Double
     ) {
-        self.engine = snippet.engine
-        self.url = snippet.url
-        self.title = snippet.title
-        self.description = snippet.description
-        self.weight = snippet.weight
+        engine = snippet.engine
+        url = snippet.url
+        title = snippet.title
+        description = snippet.description
+        weight = snippet.weight
         self.freqBoost = freqBoost
         self.hostnameBoost = hostnameBoost
         self.pathBoost = pathBoost

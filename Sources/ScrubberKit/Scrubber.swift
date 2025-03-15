@@ -42,10 +42,10 @@ public class Scrubber {
         onProgress: @escaping (Progress) -> Void = { _ in }
     ) {
         assert(Thread.isMainThread)
-        
+
         var cancellables: Set<AnyCancellable> = .init()
         let limitation = limitation ?? 20
-        
+
         progress.updatePublisher
             .throttle(for: 0.5, scheduler: DispatchQueue.main, latest: true)
             .sink { [weak self] progress in
@@ -53,7 +53,7 @@ public class Scrubber {
                 self?.cancelIf(limitation: limitation, lastTenPercent: true)
             }
             .store(in: &cancellables)
-        
+
         if let urlsReranker = options.urlsReranker {
             search(urlsReranker, topN: limitation)
         } else {
@@ -232,11 +232,12 @@ extension Scrubber {
         var searchSnippets: [SearchSnippet] = []
 
         for engine in ScrubEngine.allCases {
-            self.progress.update(engine: engine, status: .fetching)
-            guard let query = engine.makeSearchQueryRequest(self.query)
+            progress.update(engine: engine, status: .fetching)
+            guard let query = engine.makeSearchQueryRequest(query)
             else {
-                self.progress.update(
-                    engine: engine, status: .completed(result: 0))
+                progress.update(
+                    engine: engine, status: .completed(result: 0)
+                )
                 continue
             }
 
@@ -250,7 +251,7 @@ extension Scrubber {
             }
         }
 
-        self.dispatchGroup.enterBackground { leaver in
+        dispatchGroup.enterBackground { leaver in
             searchGroup.wait()
 
             let snippets = reranker.ranking(searchSnippets)
@@ -276,12 +277,12 @@ extension Scrubber {
                     }
                 }
             }
-            
+
             let missingEngines = Set(ScrubEngine.allCases).subtracting(groupedSnippets.keys)
             for engine in missingEngines {
                 self.progress.update(engine: engine, status: .completed(result: 0))
             }
-            
+
             leaver()
         }
     }

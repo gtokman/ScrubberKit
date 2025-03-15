@@ -41,8 +41,8 @@ struct ContentView: View {
             .buttonStyle(.plain)
             .underline()
             .disabled(searchQuery.isEmpty)
-            
-            HStack{
+
+            HStack {
                 Toggle("URLs Reranker", isOn: $enableURLsReranker)
                     .toggleStyle(.switch)
                 if enableURLsReranker {
@@ -59,7 +59,7 @@ struct ContentView: View {
                     }, set: {
                         keepKPerHostname = $0 == 0 ? nil : Int($0)
                     }),
-                    in: 0...10,
+                    in: 0 ... 10,
                     step: 1,
                     minimumValueLabel: Text("0"),
                     maximumValueLabel: Text("10"),

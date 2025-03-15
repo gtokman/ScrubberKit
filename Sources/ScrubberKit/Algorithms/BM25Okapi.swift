@@ -47,7 +47,7 @@ class BM25Okapi {
         totalDocs = documents.count
         averageDocLength =
             docLengths.isEmpty
-            ? 0 : Double(docLengths.reduce(0, +)) / Double(docLengths.count)
+                ? 0 : Double(docLengths.reduce(0, +)) / Double(docLengths.count)
     }
 
     func search(query: String) -> [(index: Int, score: Double)] {
@@ -91,7 +91,7 @@ class BM25Okapi {
         let tokenizer = NLTokenizer(unit: .word)
         tokenizer.string = text
         var keyWords: [String] = []
-        tokenizer.enumerateTokens(in: text.startIndex..<text.endIndex) {
+        tokenizer.enumerateTokens(in: text.startIndex ..< text.endIndex) {
             tokenRange, _ in
             keyWords.append(String(text[tokenRange]))
             return true
@@ -101,11 +101,11 @@ class BM25Okapi {
 
     func normalize(scores: [(index: Int, score: Double)]) -> [Int: Double] {
         let sumScores = scores.reduce(0.0) { $0 + $1.score }
-        
+
         if sumScores == 0 {
             return Dictionary(uniqueKeysWithValues: scores.map { ($0.index, 0.0) })
         }
-        
+
         return Dictionary(uniqueKeysWithValues: scores.map { ($0.index, $0.score / sumScores) })
     }
 }
