@@ -39,7 +39,7 @@ public class Scrubber {
     public func run(
         limitation: Int? = nil,
         _ completion: @escaping ([Document]) -> Void,
-        onProgress: @escaping (Progress) -> Void = { _ in }
+        onProgress: @escaping (Progress, [Document]) -> Void = { _, _ in }
     ) {
         assert(Thread.isMainThread)
 
@@ -49,7 +49,8 @@ public class Scrubber {
         progress.updatePublisher
             .throttle(for: 0.5, scheduler: DispatchQueue.main, latest: true)
             .sink { [weak self] progress in
-                onProgress(progress)
+                let currentDocuments = self?.result.compactMap { (url, document) in document != nil ? document : nil } ?? []
+                onProgress(progress, currentDocuments)
                 self?.cancelIf(limitation: limitation, lastTenPercent: true)
             }
             .store(in: &cancellables)
@@ -70,7 +71,8 @@ public class Scrubber {
                 let resultProgress = Progress(totalUnitCount: .init(result.count))
                 resultProgress.completedUnitCount = resultProgress.totalUnitCount
                 completion(result)
-                onProgress(resultProgress)
+                let currentDocuments = self.result.compactMap { (url, document) in document != nil ? document : nil }
+                onProgress(resultProgress, currentDocuments)
             }
         }
     }

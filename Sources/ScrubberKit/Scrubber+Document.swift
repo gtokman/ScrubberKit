@@ -14,6 +14,7 @@ extension Scrubber {
         public let url: URL
         public let document: String
         public let textDocument: String
+        public let ogImage: URL?
         public let engine: ScrubEngine?
     }
 
@@ -29,6 +30,15 @@ extension Scrubber {
 
         guard let textDocument = try? soup.text() else {
             return nil
+        }
+
+        let ogImage: URL?
+        if let metaTag = try? soup.select("meta[property=og:image]").first(),
+           let content = try? metaTag.attr("content"),
+           let imageURL = URL(string: content) {
+            ogImage = imageURL
+        } else {
+            ogImage = nil
         }
 
         guard !textDocument.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
@@ -47,6 +57,7 @@ extension Scrubber {
             url: newURL,
             document: document,
             textDocument: textDocument,
+            ogImage: ogImage,
             engine: engine
         )
     }
